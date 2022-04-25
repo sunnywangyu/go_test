@@ -79,22 +79,23 @@ func getDiDiCarInfo() {
 		end_date := time.Now().Format( "2006-01-02")
 		start_date_duration,_ := time.ParseDuration("-24h")
 		start_date := time.Now().Add(start_date_duration).Format( "2006-01-02")
+		tag := time.Now().Format( "200601021504") //每次调用算一批次
 		pageSize := 10
-		total := pushOrder(accessToken,end_date,start_date,pageSize,0)
+		total := pushOrder(accessToken,end_date,start_date,tag,pageSize,0)
 		totalPage := math.Ceil(total/float64(pageSize))
 		totalPageInt, _ := strconv.Atoi(fmt.Sprintf("%1.0f",totalPage))
 		if totalPageInt > 1 {
 			for i := 0; i < totalPageInt; i++ {
 				offset := i * pageSize
 				//调用接口循环入库
-				pushOrder(accessToken,end_date,start_date,pageSize,offset)
+				pushOrder(accessToken,end_date,start_date,tag,pageSize,offset)
 			}
 		}
 	}
 	return
 }
 
-func pushOrder(accessToken,end_date,start_date string,pageSize,offset int )  float64 {
+func pushOrder(accessToken,end_date,start_date,tag string,pageSize,offset int )  float64 {
 	//拼装订单参数
 	orderUrlParam := "access_token=" + accessToken + "&client_id=" + clientId + "&company_id=" + companyId +
 		"&end_date=" + end_date + "&length=" +  strconv.Itoa(pageSize) + "&offset=" + strconv.Itoa(offset) +
@@ -126,7 +127,6 @@ func pushOrder(accessToken,end_date,start_date string,pageSize,offset int )  flo
 		fmt.Println("调用订单接口,获取到订单数据,total = ",total,",pageSize=",pageSize,",offset=",offset)
 		//将订单records数据转成json
 		jsonRecords,_ := json.Marshal(DiDiOrder["data"].(map[string]interface{})["records"])
-		tag := time.Now().Format( "200601021504")
 		//推送订单数据到Cost库参数
 		postOrderData := `
 		{
