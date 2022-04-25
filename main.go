@@ -76,9 +76,10 @@ func getDiDiCarInfo() {
 		}
 		//解析access_token
 		accessToken := RespAccessToken.Token
-		end_date := time.Now().Format( "2006-01-02")
 		start_date_duration,_ := time.ParseDuration("-24h")
 		start_date := time.Now().Add(start_date_duration).Format( "2006-01-02")
+		//end_date := time.Now().Format( "2006-01-02")
+		end_date := start_date
 		tag := time.Now().Format( "200601021504") //每次调用算一批次
 		pageSize := 10
 		total := pushOrder(accessToken,end_date,start_date,tag,pageSize,0)
