@@ -86,7 +86,7 @@ func getDiDiCarInfo() {
 		totalPage := math.Ceil(total/float64(pageSize))
 		totalPageInt, _ := strconv.Atoi(fmt.Sprintf("%1.0f",totalPage))
 		if totalPageInt > 1 {
-			for i := 0; i < totalPageInt; i++ {
+			for i := 1; i < totalPageInt; i++ {
 				offset := i * pageSize
 				//调用接口循环入库
 				pushOrder(accessToken,end_date,start_date,tag,pageSize,offset)
