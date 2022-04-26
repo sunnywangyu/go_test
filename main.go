@@ -81,7 +81,7 @@ func getDiDiCarInfo() {
 		//end_date := time.Now().Format( "2006-01-02")
 		end_date := start_date
 		tag := time.Now().Format( "200601021504") //每次调用算一批次
-		pageSize := 10
+		pageSize := 100
 		total := pushOrder(accessToken,end_date,start_date,tag,pageSize,0)
 		totalPage := math.Ceil(total/float64(pageSize))
 		totalPageInt, _ := strconv.Atoi(fmt.Sprintf("%1.0f",totalPage))
@@ -137,8 +137,8 @@ func pushOrder(accessToken,end_date,start_date,tag string,pageSize,offset int ) 
 			"data": ` + string(jsonRecords) + `
 		}
 		`
-		fmt.Println(postOrderData)
-		pushOrderUrl := "http://cost.ksyun.com/interface/bi-accept-data"
+		//fmt.Println(postOrderData)
+		pushOrderUrl := "http://120.92.106.81:1502/interface/bi-accept-data"
 		//推送订单数据到Cost接口入库
 		_,err3 := http.Post(pushOrderUrl,"application/json", strings.NewReader(postOrderData))
 		if err3 != nil {
