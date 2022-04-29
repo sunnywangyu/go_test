@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/robfig/cron"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -28,12 +27,12 @@ var (
 	companyId string
 )
 func main() {
-	c := cron.New()
+	//c := cron.New()
 	//定时任务
 	//spec := "0 */1 * * * ?" //cron表达式，每隔一分钟执行一次
-	spec := "0 0 9 * * ?" //cron表达式，每天9点执行一次
+	//spec := "0 0 9 * * ?" //cron表达式，每天9点执行一次
 
-	c.AddFunc(spec, func() {
+	//c.AddFunc(spec, func() {
 		clientId = "1cc34da2484e52b8921d398298909abb"
 		clientSecret = "bab21ae4b9820bc62dc0b9c69e80813e"
 		grantType = "client_credentials"
@@ -42,10 +41,10 @@ func main() {
 	    companyId = "1125909343514202"
 		getDiDiCarInfo()
 		fmt.Println("调用滴滴接口入库完成===",time.Now().Format( "200601021504"))
-	})
+	//})
 
-	c.Start()
-	select {}  //阻塞主线程停止
+	//c.Start()
+	//select {}  //阻塞主线程停止
 }
 
 func getDiDiCarInfo() {
@@ -143,9 +142,65 @@ func pushOrder(accessToken,end_date,start_date,tag string,pageSize,offset int ) 
 		//fmt.Println(postOrderData)
 		pushOrderUrl := "http://120.92.106.81:1502/interface/bi-accept-data"
 		//推送订单数据到Cost接口入库
-		_,err3 := http.Post(pushOrderUrl,"application/json", strings.NewReader(postOrderData))
+		reponsePush,err3 := http.Post(pushOrderUrl,"application/json", strings.NewReader(postOrderData))
 		if err3 != nil {
 			fmt.Println("推送滴滴订单数据到BI库,error = ",err3)
+		} else {
+			defer respOrder.Body.Close()
+			//解析推送结果
+			reponsePushBody, _ := ioutil.ReadAll(reponsePush.Body)
+			var pushResult map[string]interface{}
+			json.Unmarshal([]byte(string(reponsePushBody)),&pushResult)
+			if pushResult["status"].(bool) {
+				for _,v := range pushResult["msg"].(map[string]interface{}) {
+					fmt.Println(v)
+					 //调用滴滴接口获取用户信息详情
+					//拼装用户详情参数
+					userUrlParam := "client_id=" + clientId + "&access_token=" + accessToken + "&timestamp=" +strconv.FormatInt(time.Now().Unix(), 10) +
+						"&company_id="+ companyId + "&member_id=" + v.(string)
+					signUser :=  fmt.Sprintf("%x", md5.Sum([]byte(userUrlParam)))
+					//调用获取订单接口
+					userUrl := "https://api.es.xiaojukeji.com/river/Member/detail?"+ userUrlParam + "&sign="+ signUser
+					userInfo,err4 := http.Get(userUrl)
+					if err4 != nil {
+						fmt.Println("调用滴滴获取用户详情接口异常,member_id = ",v,",error=",err4)
+						continue
+					} else {
+						defer userInfo.Body.Close()
+						//解析订单json
+						userInfoBody, _ := ioutil.ReadAll(userInfo.Body)
+						var DiDiUserInfo map[string]interface{}
+						json.Unmarshal([]byte(string(userInfoBody)),&DiDiUserInfo)
+						if DiDiUserInfo["errno"].(float64) > 0 {
+							fmt.Println(userUrl)
+							fmt.Println(DiDiUserInfo)
+							fmt.Println("调用滴滴获取用户详情接口异常,member_id =",v,",error = ",DiDiUserInfo["errmsg"])
+							continue
+						}
+						//将订单records数据转成json
+						pushUserInfo,_ := json.Marshal(DiDiUserInfo["data"].(map[string]interface{}))
+						//推送订单数据到Cost库参数
+						pushUserInfoData := `
+							{
+								"access_token": "f8e947c7e7186e8d4a4cf9a0643b9a27",
+								"table": "pull_didi_user_info",
+								"tag": "` + tag + `",
+								"data": ` + string(pushUserInfo) + `
+							}
+ 						`
+						fmt.Println(postOrderData)
+						//推送订单数据到Cost接口入库
+						_,err5 := http.Post(pushOrderUrl,"application/json", strings.NewReader(pushUserInfoData))
+						if err5 != nil {
+							fmt.Println("推送滴滴订单数据到BI库,error = ",err5)
+						}
+					}
+				}
+				return float64(0)
+			} else {
+				fmt.Println("推送滴滴订单数据到BI库异常,error = ",pushResult["msg"])
+				return float64(0)
+			}
 		}
 		return total
 	}
